@@ -262,6 +262,9 @@ export default function App() {
             </div>
           </div>
         </div>
+        <footer className="text-center py-6 text-gray-400 text-xs">
+          © {new Date().getFullYear()} tomz. All rights reserved.
+        </footer>
       </div>
     );
   }
@@ -346,6 +349,9 @@ export default function App() {
           </button>
         </div>
       </div>
+      <footer className="text-center py-6 text-gray-400 text-xs">
+        © {new Date().getFullYear()} tomz. All rights reserved.
+      </footer>
     </div>
   );
 }
