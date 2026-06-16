@@ -227,10 +227,10 @@ export default function App() {
     const dismissingScore = avgA * 7.36 + avgB * 4.93 - 22.23;
 
     const types = [
-      { name: '安全型', score: secureScore, desc: '你对亲密关系感到自在，既能安心地依赖伴侣，也乐于被伴侣依赖。你相信自己是值得被爱的，也信任伴侣会在需要时给予支持。在关系中，你善于沟通情感，能够在亲密与独立之间找到健康的平衡。', color: 'bg-green-100 text-green-800 border-green-300' },
-      { name: '恐惧型', score: fearfulScore, desc: '你渴望亲密却又害怕受伤，内心充满矛盾——想要靠近，又担心一旦袒露真实的自己就会被拒绝。你可能经历过情感创伤，导致你既不相信自己值得被爱，也难以完全信任他人。在关系中往往若即若离，用推开对方的方式来测试对方的真心。', color: 'bg-red-100 text-red-800 border-red-300' },
-      { name: '痴迷型', score: preoccupiedScore, desc: '你对亲密关系有着强烈的渴望，常常担心伴侣不够爱你或会离开你。你倾向于过度投入关系，反复寻求对方的确认和保证，容易因小事感到焦虑和不安。你对自己评价相对较低，却容易把伴侣理想化，这种不对等的期待常让对方感到压力。', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-      { name: '疏离型', score: dismissingScore, desc: '你高度看重独立和自主，倾向于与伴侣保持一定的情感距离。你不太愿意分享内心感受或依赖他人，也不习惯被他人过度依赖。你可能回避深层的情感连接，用理性来隔离情感需求，但这往往让你错失真正亲密的体验。', color: 'bg-purple-100 text-purple-800 border-purple-300' }
+      { name: '安全型', score: secureScore, desc: '你对自己和他人都持有积极看法，在亲密关系中既不过度担忧被抛弃，也不刻意回避亲近。你能够坦诚表达情感需求，也尊重伴侣的独立空间，相信在需要时彼此都会给予支持。你在亲密与自主之间游刃有余，是关系中最稳健、最具修复力的一类。', color: 'bg-green-100 text-green-800 border-green-300' },
+      { name: '恐惧型', score: fearfulScore, desc: '你渴望被爱却又恐惧亲密，内心充满拉扯——既想靠近，又深信一旦对方了解真实的你便会离开。你往往对自己和他人同时抱有负面预期：觉得自己不够好，也不信别人会真心接纳。关系中你常常在热情和疏远之间反复摇摆，总是先行推开对方，以免自己先受伤害。', color: 'bg-red-100 text-red-800 border-red-300' },
+      { name: '痴迷型', score: preoccupiedScore, desc: '你把亲密关系视为生活的重心，极度渴望与伴侣融为一体，却总在患得患失中消耗自己。你对自己评价偏低，却倾向于将伴侣理想化，因而不断寻求对方的确认与保证，生怕被冷落或抛弃。这份高度警觉的焦虑，常常让伴侣感到窒息，也让你的情绪被关系中的风吹草动牢牢牵住。', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+      { name: '疏离型', score: dismissingScore, desc: '你以独立自足为铠甲，不轻易依赖他人，也不愿被他人依赖。你习惯将情感需求深藏心底，用理性筑起一道墙，在关系中始终保持安全距离。你并非不在乎，而是潜意识里认为依靠自己才最稳妥。只是这堵墙在保护你的同时，也隔断了那些真正可触及的温暖与亲密。', color: 'bg-purple-100 text-purple-800 border-purple-300' }
     ];
 
     let maxType = types[0];
