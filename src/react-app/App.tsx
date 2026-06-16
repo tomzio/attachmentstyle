@@ -1,6 +1,51 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
-// 题目数据
+// ===================== 类型定义 =====================
+interface ResultType {
+  name: string;
+  score: number;
+  desc: string;
+  color: string;
+}
+
+interface ResultData {
+  avgA: number;
+  avgB: number;
+  types: ResultType[];
+  finalType: ResultType;
+}
+
+interface HistoryEntry extends ResultData {
+  id: number;
+  date: string;
+}
+
+// ===================== 历史记录存储 =====================
+const HISTORY_KEY = 'attachment_style_history';
+
+const loadHistory = (): HistoryEntry[] => {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveHistory = (entry: Omit<HistoryEntry, 'id'>): HistoryEntry[] => {
+  const history = loadHistory();
+  const newEntry: HistoryEntry = { ...entry, id: Date.now() };
+  history.unshift(newEntry);
+  const trimmed = history.slice(0, 20);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+  return trimmed;
+};
+
+const clearHistoryStorage = () => {
+  localStorage.removeItem(HISTORY_KEY);
+};
+
+// ===================== 题目数据 =====================
 const QUESTIONS = [
   "总的来说，我不喜欢让恋人知道自己内心深处的感觉。",
   "我担心我会被抛弃。",
@@ -40,7 +85,6 @@ const QUESTIONS = [
   "当恋人不花时间和我在一起时，我会感到怨恨。"
 ];
 
-// 反向计分题号 (1-based index)
 const REVERSE_ITEMS = [3, 15, 19, 22, 25, 27, 29, 31, 33, 35];
 
 const SCALE_OPTIONS = [
@@ -53,7 +97,7 @@ const SCALE_OPTIONS = [
   { val: 7, label: '非常同意' }
 ];
 
-// 计分组件
+// ===================== 计分组件 =====================
 const RatingScale = ({ value, onChange }: { value: number | null; onChange: (val: number) => void }) => {
   return (
     <div className="flex flex-wrap lg:flex-nowrap gap-1.5 sm:gap-2 mt-4">
@@ -75,50 +119,98 @@ const RatingScale = ({ value, onChange }: { value: number | null; onChange: (val
   );
 };
 
+// ===================== 历史记录面板 =====================
+const TYPE_COLOR_MAP: Record<string, string> = {
+  '安全型': 'bg-green-100 text-green-700',
+  '恐惧型': 'bg-red-100 text-red-700',
+  '痴迷型': 'bg-yellow-100 text-yellow-700',
+  '疏离型': 'bg-purple-100 text-purple-700',
+};
+
+const HistoryPanel = ({
+  history,
+  onClear,
+}: {
+  history: HistoryEntry[];
+  onClear: () => void;
+}) => {
+  if (history.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-400 text-sm">
+        暂无历史测试记录
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-xs text-gray-400">共 {history.length} 条记录</span>
+        <button
+          onClick={onClear}
+          className="text-xs text-red-500 hover:text-red-700 underline transition-colors"
+        >
+          清空记录
+        </button>
+      </div>
+      <div className="space-y-3">
+        {history.map((entry) => (
+          <div
+            key={entry.id}
+            className="bg-white rounded-lg border border-gray-100 p-4 flex items-center justify-between hover:shadow-sm transition-shadow"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <span
+                className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                  TYPE_COLOR_MAP[entry.finalType.name] || 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {entry.finalType.name}
+              </span>
+              <span className="text-xs text-gray-400 whitespace-nowrap">{entry.date}</span>
+            </div>
+            <div className="flex items-center gap-4 flex-shrink-0 ml-4">
+              <span className="text-xs text-gray-500">
+                回避 <span className="font-mono font-medium text-gray-700">{entry.avgA.toFixed(2)}</span>
+              </span>
+              <span className="text-xs text-gray-500">
+                焦虑 <span className="font-mono font-medium text-gray-700">{entry.avgB.toFixed(2)}</span>
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ===================== 主组件 =====================
 export default function App() {
-  const [answers, setAnswers] = useState(Array(36).fill(null));
+  const [answers, setAnswers] = useState<(number | null)[]>(Array(36).fill(null));
   const [showResult, setShowResult] = useState(false);
-  interface ResultType {
-    name: string;
-    score: number;
-    desc: string;
-    color: string;
-  }
-
-  interface ResultData {
-    avgA: number;
-    avgB: number;
-    types: ResultType[];
-    finalType: ResultType;
-  }
-
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
-
-  // 用于滚动到未答题目
+  const [history, setHistory] = useState<HistoryEntry[]>(loadHistory);
+  const [showHistory, setShowHistory] = useState(false);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const handleAnswerChange = (index: number, value: number) => {
     const newAnswers = [...answers];
     newAnswers[index] = value;
     setAnswers(newAnswers);
-    if (errorMsg) setErrorMsg(''); // 清除错误提示
+    if (errorMsg) setErrorMsg('');
   };
 
-  const calculateResults = () => {
-    let sumA = 0; // 依恋回避维度
-    let sumB = 0; // 依恋焦虑维度
+  const calculateResults = useCallback(() => {
+    let sumA = 0;
+    let sumB = 0;
 
     answers.forEach((val, index) => {
-      const qNum = index + 1; // 题目编号 1-36
-      let score = val;
-
-      // 反向计分处理
+      const qNum = index + 1;
+      let score = val!;
       if (REVERSE_ITEMS.includes(qNum)) {
-        score = 8 - val; // 1->7, 2->6... 7->1
+        score = 8 - val!;
       }
-
-      // 奇数题为回避维度，偶数题为焦虑维度
       if (qNum % 2 !== 0) {
         sumA += score;
       } else {
@@ -129,7 +221,6 @@ export default function App() {
     const avgA = sumA / 18;
     const avgB = sumB / 18;
 
-    // 费舍尔线性判别公式
     const secureScore = avgA * 3.29 + avgB * 5.47 - 11.53;
     const fearfulScore = avgA * 7.23 + avgB * 8.17 - 32.35;
     const preoccupiedScore = avgA * 3.92 + avgB * 9.71 - 28.45;
@@ -142,29 +233,31 @@ export default function App() {
       { name: '疏离型', score: dismissingScore, desc: '你高度看重独立和自主，倾向于与伴侣保持一定的情感距离。你不太愿意分享内心感受或依赖他人，也不习惯被他人过度依赖。你可能回避深层的情感连接，用理性来隔离情感需求，但这往往让你错失真正亲密的体验。', color: 'bg-purple-100 text-purple-800 border-purple-300' }
     ];
 
-    // 找出最高分的类型
     let maxType = types[0];
     types.forEach(t => {
-      if (t.score > maxType.score) {
-        maxType = t;
-      }
+      if (t.score > maxType.score) maxType = t;
     });
 
-    setResultData({
-      avgA: avgA,
-      avgB: avgB,
-      types: types.sort((a, b) => b.score - a.score), // 按得分降序排列
-      finalType: maxType
-    });
-  };
+    const data: ResultData = {
+      avgA,
+      avgB,
+      types: [...types].sort((a, b) => b.score - a.score),
+      finalType: maxType,
+    };
+
+    setResultData(data);
+
+    // 存入历史记录
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const newHistory = saveHistory({ ...data, date: dateStr });
+    setHistory(newHistory);
+  }, [answers]);
 
   const handleSubmit = () => {
-    // 检查是否有未答题目
     const firstUnansweredIndex = answers.findIndex(a => a === null);
-
     if (firstUnansweredIndex !== -1) {
       setErrorMsg(`请回答所有问题，您遗漏了第 ${firstUnansweredIndex + 1} 题。`);
-      // 平滑滚动到第一个未答题目
       questionRefs.current[firstUnansweredIndex]?.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
@@ -182,13 +275,19 @@ export default function App() {
     setShowResult(false);
     setResultData(null);
     setErrorMsg('');
+    setShowHistory(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // 计算进度
+  const handleClearHistory = () => {
+    clearHistoryStorage();
+    setHistory([]);
+  };
+
   const answeredCount = answers.filter(a => a !== null).length;
   const progressPercentage = (answeredCount / 36) * 100;
 
+  // ===================== 结果页 =====================
   if (showResult && resultData) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 font-sans">
@@ -252,14 +351,30 @@ export default function App() {
               <p className="text-xs text-gray-400 mt-3 text-center">系统依据得分最高的一项作为最终诊断结果。</p>
             </div>
 
-            <div className="pt-6 text-center">
+            <div className="pt-6 text-center flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={resetTest}
                 className="px-8 py-3 bg-gray-800 text-white font-medium rounded-full hover:bg-gray-700 transition-colors shadow-lg hover:shadow-xl"
               >
                 重新测试
               </button>
+              {history.length > 0 && (
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="px-8 py-3 bg-white text-gray-700 font-medium rounded-full border border-gray-300 hover:bg-gray-50 transition-colors shadow-sm"
+                >
+                  {showHistory ? '收起历史记录' : '查看历史记录'}
+                </button>
+              )}
             </div>
+
+            {/* 历史记录 */}
+            {showHistory && (
+              <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                <h3 className="text-lg font-bold mb-4 text-gray-800">历史测试记录</h3>
+                <HistoryPanel history={history} onClear={handleClearHistory} />
+              </div>
+            )}
           </div>
         </div>
         <footer className="text-center py-6 text-gray-400 text-xs">
@@ -269,6 +384,7 @@ export default function App() {
     );
   }
 
+  // ===================== 测试页 =====================
   return (
     <div className="min-h-screen bg-gray-100 font-sans pb-24">
       {/* 顶部固定进度条 */}
@@ -315,7 +431,6 @@ export default function App() {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg text-gray-800 font-medium leading-relaxed">
-                      {/* 移除题目末尾可能带有的 (R) 标记，对用户不可见更友好 */}
                       {question.replace(/\s*\(R\)\s*$/, '')}
                     </h3>
                     <RatingScale
@@ -348,6 +463,28 @@ export default function App() {
             生成测试结果
           </button>
         </div>
+
+        {/* 历史记录 */}
+        {history.length > 0 && (
+          <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="w-full px-6 sm:px-8 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+            >
+              <span className="font-semibold text-gray-800">
+                历史测试记录 ({history.length})
+              </span>
+              <span className={`text-gray-400 transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`}>
+                ▼
+              </span>
+            </button>
+            {showHistory && (
+              <div className="px-6 sm:px-8 pb-6">
+                <HistoryPanel history={history} onClear={handleClearHistory} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <footer className="text-center py-6 text-gray-400 text-xs">
         © {new Date().getFullYear()} tomz. All rights reserved.
