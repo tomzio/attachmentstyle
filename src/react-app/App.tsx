@@ -157,7 +157,7 @@ const HistoryPanel = ({
         {history.map((entry) => (
           <div
             key={entry.id}
-            className="bg-white rounded-lg border border-gray-100 p-4 flex items-center justify-between hover:shadow-sm transition-shadow"
+            className="bg-white rounded-lg border border-gray-100 p-2 flex items-center justify-between hover:shadow-sm transition-shadow"
           >
             <div className="flex items-center gap-3 min-w-0">
               <span
@@ -370,7 +370,7 @@ export default function App() {
 
             {/* 历史记录 */}
             {showHistory && (
-              <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                 <h3 className="text-lg font-bold mb-4 text-gray-800">历史测试记录</h3>
                 <HistoryPanel history={history} onClear={handleClearHistory} />
               </div>
@@ -469,7 +469,7 @@ export default function App() {
           <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="w-full px-6 sm:px-8 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+              className="w-full px-4 sm:px-4 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
             >
               <span className="font-semibold text-gray-800">
                 历史测试记录 ({history.length})
@@ -479,7 +479,7 @@ export default function App() {
               </span>
             </button>
             {showHistory && (
-              <div className="px-6 sm:px-8 pb-6">
+              <div className="px-4 sm:px-4 pb-6">
                 <HistoryPanel history={history} onClear={handleClearHistory} />
               </div>
             )}
