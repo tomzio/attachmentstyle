@@ -12,6 +12,7 @@
 		"publish": true
 	},
 	"dependencies": {
+		"@vercel/blob": "^2.4.0",
 		"autoprefixer": "^10.5.0",
 		"hono": "4.11.1",
 		"postcss": "^8.5.15",
@@ -39,10 +40,11 @@
 	"scripts": {
 		"build": "tsc -b && vite build",
 		"cf-typegen": "wrangler types",
+		"list-blobs": "vercel blob list --prefix images/ --limit 20",
 		"check": "tsc && vite build && wrangler deploy --dry-run",
 		"deploy": "wrangler deploy",
 		"dev": "vite",
-				"dev:client": "vite --mode client",
+		"dev:client": "vite --mode client",
 		"lint": "eslint .",
 		"preview": "npm run build && vite preview"
 	},

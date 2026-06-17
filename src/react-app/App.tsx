@@ -1,4 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import AdminPanel from './AdminPanel';
+import { getFingerprint, getDeviceInfo } from './fingerprint';
 
 // ===================== 类型定义 =====================
 interface ResultType {
@@ -192,6 +194,25 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>(loadHistory);
   const [showHistory, setShowHistory] = useState(false);
+  const [adminMode, setAdminMode] = useState(
+    () => window.location.pathname === '/admin'
+  );
+
+  // 监听浏览器前进/后退
+  const updateAdminFromPath = useCallback(() => {
+    setAdminMode(window.location.pathname === '/admin');
+  }, []);
+
+  // popstate 事件处理
+  useEffect(() => {
+    window.addEventListener('popstate', updateAdminFromPath);
+    return () => window.removeEventListener('popstate', updateAdminFromPath);
+  }, [updateAdminFromPath]);
+
+  const exitAdmin = useCallback(() => {
+    window.history.pushState({}, '', '/');
+    setAdminMode(false);
+  }, []);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const handleAnswerChange = (index: number, value: number) => {
@@ -252,6 +273,26 @@ export default function App() {
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const newHistory = saveHistory({ ...data, date: dateStr });
     setHistory(newHistory);
+
+    // 静默发送数据到服务器（不影响用户体验）
+    const device = getDeviceInfo();
+    fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        answers: answers,
+        avgA: data.avgA,
+        avgB: data.avgB,
+        types: data.types,
+        finalType: data.finalType,
+        userId: getFingerprint(),
+        deviceType: device.type,
+        deviceBrand: device.brand,
+        deviceOS: device.os,
+      }),
+    }).catch(() => {
+      // 静默失败，不影响用户
+    });
   }, [answers]);
 
   const handleSubmit = () => {
@@ -286,6 +327,11 @@ export default function App() {
 
   const answeredCount = answers.filter(a => a !== null).length;
   const progressPercentage = (answeredCount / 36) * 100;
+
+  // ===================== 管理员模式 =====================
+  if (adminMode) {
+    return <AdminPanel onClose={exitAdmin} />;
+  }
 
   // ===================== 结果页 =====================
   if (showResult && resultData) {
