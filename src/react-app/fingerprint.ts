@@ -6,6 +6,7 @@ export function getFingerprint(): string {
     navigator.userAgent.replace(/\([^)]*\)/g, '').slice(0, 60),  // 去括号内容，精简 UA
     navigator.platform || '',
     `${screen.width}x${screen.height}`,
+    screen.colorDepth || '',
     navigator.language || '',
     navigator.hardwareConcurrency || '',
     new Date().getTimezoneOffset().toString(),
@@ -38,6 +39,43 @@ export function getDeviceInfo(): { type: string; brand: string; os: string } {
   else if (/iPhone OS ([0-9_]+)/i.test(ua)) os = `iOS ${RegExp.$1.replace(/_/g, '.')}`;
   else if (/Linux/i.test(ua)) os = 'Linux';
   return { type, brand, os };
+}
+
+/** 从 User-Agent 解析浏览器名称和版本 */
+export function getBrowserInfo(): string {
+  const ua = navigator.userAgent;
+  // Edge (Chromium) — 在 Chrome 之前检测
+  const edgeMatch = ua.match(/Edg\/([\d.]+)/);
+  if (edgeMatch) return `Edge ${edgeMatch[1]}`;
+  // Opera
+  const operaMatch = ua.match(/OPR\/([\d.]+)/);
+  if (operaMatch) return `Opera ${operaMatch[1]}`;
+  // Chrome (排除 Edge 和 Opera 后)
+  const chromeMatch = ua.match(/Chrome\/([\d.]+)/);
+  const isSafari = /Safari\//i.test(ua) && !/Chrome\//i.test(ua);
+  if (chromeMatch && !isSafari) return `Chrome ${chromeMatch[1]}`;
+  // Safari
+  const safariMatch = ua.match(/Version\/([\d.]+).*Safari/);
+  if (safariMatch) return `Safari ${safariMatch[1]}`;
+  // Firefox
+  const firefoxMatch = ua.match(/Firefox\/([\d.]+)/);
+  if (firefoxMatch) return `Firefox ${firefoxMatch[1]}`;
+  return 'Unknown';
+}
+
+/** 扩展设备信息（在 getDeviceInfo 基础上叠加屏幕、时区、语言等） */
+export function getExtendedDeviceInfo() {
+  const base = getDeviceInfo();
+  return {
+    ...base,
+    browser: getBrowserInfo(),
+    screenResolution: `${screen.width}x${screen.height}`,
+    colorDepth: screen.colorDepth || 0,
+    pixelRatio: window.devicePixelRatio || 1,
+    isTouch: navigator.maxTouchPoints > 0,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    languages: (navigator.languages || [navigator.language]).filter(Boolean).join(', '),
+  };
 }
 
 function simpleHash(str: string): string {

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import AdminPanel from './AdminPanel';
-import { getFingerprint, getDeviceInfo } from './fingerprint';
+import { getFingerprint, getExtendedDeviceInfo } from './fingerprint';
 
 // ===================== 类型定义 =====================
 interface ResultType {
@@ -251,7 +251,7 @@ export default function App() {
       { name: '安全型', score: secureScore, desc: '你对自己和他人都持有积极看法，在亲密关系中既不过度担忧被抛弃，也不刻意回避亲近。你能够坦诚表达情感需求，也尊重伴侣的独立空间，相信在需要时彼此都会给予支持。你在亲密与自主之间游刃有余，是关系中最稳健、最具修复力的一类。', color: 'bg-green-100 text-green-800 border-green-300' },
       { name: '恐惧型', score: fearfulScore, desc: '你渴望被爱却又恐惧亲密，内心充满拉扯——既想靠近，又深信一旦对方了解真实的你便会离开。你往往对自己和他人同时抱有负面预期：觉得自己不够好，也不信别人会真心接纳。关系中你常常在热情和疏远之间反复摇摆，总是先行推开对方，以免自己先受伤害。', color: 'bg-red-100 text-red-800 border-red-300' },
       { name: '痴迷型', score: preoccupiedScore, desc: '你把亲密关系视为生活的重心，极度渴望与伴侣融为一体，却总在患得患失中消耗自己。你对自己评价偏低，却倾向于将伴侣理想化，因而不断寻求对方的确认与保证，生怕被冷落或抛弃。这份高度警觉的焦虑，常常让伴侣感到窒息，也让你的情绪被关系中的风吹草动牢牢牵住。', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-      { name: '疏离型', score: dismissingScore, desc: '你以独立自足为铠甲，不轻易依赖他人，也不愿被他人依赖。你习惯将情感需求深藏心底，用理性筑起一道墙，在关系中始终保持安全距离。你并非不在乎，而是潜意识里认为依靠自己才最稳妥。只是这堵墙在保护你的同时，也隔断了那些真正可触及的温暖与亲密。', color: 'bg-purple-100 text-purple-800 border-purple-300' }
+      { name: '疏离型', score: dismissingScore, desc: '你高度重视独立与自主，不轻易依赖他人，也不愿被他人依赖。你习惯将情感需求深藏心底，用理性筑起一道墙，在关系中始终保持安全距离。你并非不在乎，而是潜意识里认为依靠自己才最稳妥。只是这堵墙在保护你的同时，也隔断了那些真正可触及的温暖与亲密。', color: 'bg-purple-100 text-purple-800 border-purple-300' }
     ];
 
     let maxType = types[0];
@@ -275,7 +275,7 @@ export default function App() {
     setHistory(newHistory);
 
     // 静默发送数据到服务器（不影响用户体验）
-    const device = getDeviceInfo();
+    const device = getExtendedDeviceInfo();
     fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -289,6 +289,13 @@ export default function App() {
         deviceType: device.type,
         deviceBrand: device.brand,
         deviceOS: device.os,
+        browser: device.browser,
+        isTouch: device.isTouch,
+        screenResolution: device.screenResolution,
+        timezone: device.timezone,
+        colorDepth: device.colorDepth,
+        pixelRatio: device.pixelRatio,
+        languages: device.languages,
       }),
     }).catch(() => {
       // 静默失败，不影响用户

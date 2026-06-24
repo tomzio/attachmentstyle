@@ -1,7 +1,19 @@
 import { useState, useMemo } from 'react';
 
 // ===================== 类型 =====================
-interface DeviceInfo { type: string; brand: string; os: string }
+interface DeviceInfo {
+  type: string;
+  brand: string;
+  os: string;
+  browser?: string | null;
+  isTouch?: boolean | null;
+  screenResolution?: string | null;
+  timezone?: string | null;
+  colorDepth?: number | null;
+  pixelRatio?: number | null;
+  languages?: string | null;
+}
+interface LocationInfo { country: string; region: string; city: string; isp: string }
 interface AdminResult {
   id: string;
   pathname?: string;
@@ -14,6 +26,7 @@ interface AdminResult {
   ip: string | null;
   userId: string | null;
   device: DeviceInfo | null;
+  location: LocationInfo | null;
 }
 
 const TYPE_BADGE: Record<string, string> = {
@@ -29,9 +42,10 @@ const TYPE_OPTIONS = ['全部', '安全型', '恐惧型', '痴迷型', '疏离�
 const exportCSV = (results: AdminResult[]) => {
   const headers = [
     'ID', '提交时间', '用户指纹', '设备类型', '设备品牌', '系统',
+    '浏览器', '触屏', '屏幕', '时区', '色深', '像素比', '语言',
     '最终类型', '回避均分', '焦虑均分',
     '安全型', '恐惧型', '痴迷型', '疏离型',
-    'IP',
+    'IP', '国家', '地区', '城市', 'ISP',
     ...Array.from({ length: 36 }, (_, i) => `第${i + 1}题`),
   ];
   const rows = results.map((r) => {
@@ -39,10 +53,17 @@ const exportCSV = (results: AdminResult[]) => {
     r.types.forEach((t) => { ts[t.name] = t.score; });
     return [
       r.id, r.submittedAt, r.userId || '', r.device?.type || '', r.device?.brand || '', r.device?.os || '',
+      r.device?.browser || '', r.device?.isTouch != null ? (r.device.isTouch ? '是' : '否') : '',
+      r.device?.screenResolution || '', r.device?.timezone || '',
+      r.device?.colorDepth != null ? String(r.device.colorDepth) : '',
+      r.device?.pixelRatio != null ? String(r.device.pixelRatio) : '',
+      r.device?.languages || '',
       r.finalType.name, r.avgA.toFixed(2), r.avgB.toFixed(2),
       ts['安全型']?.toFixed(2) || '', ts['恐惧型']?.toFixed(2) || '',
       ts['痴迷型']?.toFixed(2) || '', ts['疏离型']?.toFixed(2) || '',
       r.ip || '',
+      r.location?.country || '', r.location?.region || '',
+      r.location?.city || '', r.location?.isp || '',
       ...r.answers.map(String),
     ];
   });
@@ -117,7 +138,9 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
       const q = searchUser.trim().toLowerCase();
       list = list.filter((r) =>
         (r.userId || '').toLowerCase().includes(q) ||
-        (r.ip || '').includes(q)
+        (r.ip || '').includes(q) ||
+        (r.location?.country || '').toLowerCase().includes(q) ||
+        (r.location?.city || '').toLowerCase().includes(q)
       );
     }
     return list;
@@ -207,7 +230,7 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
             <div>
               <label className="block text-xs text-gray-500 mb-1">用户/IP 搜索</label>
               <input type="text" value={searchUser} onChange={(e) => setSearchUser(e.target.value)}
-                placeholder="指纹或 IP" className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-48" />
+                placeholder="IP/国家/城市" className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-48" />
             </div>
             {(filterType !== '全部' || dateFrom || dateTo || searchUser) && (
               <button onClick={() => { setFilterType('全部'); setDateFrom(''); setDateTo(''); setSearchUser(''); }}
@@ -244,10 +267,35 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
                   {filtered.map((r: any) => {
                     const ts: Record<string, number> = {};
                     r.types.forEach((t: any) => { ts[t.name] = t.score; });
-                    const uid = (r.userId || r.ip || '未知').slice(0, 12);
-                    const devInfo = r.device
-                      ? `${r.device.type || ''} ${r.device.brand || ''} ${r.device.os || ''}`.trim()
-                      : (r.ip ? r.ip.split(',')[0] : '未知');
+                    const uid = (r.userId || (r.ip ? r.ip.split(',')[0] : null) || '未知').slice(0, 12);
+
+                    // 构建 hover tooltip 完整信息
+                    const devInfoParts: string[] = [];
+                    if (r.device) {
+                      devInfoParts.push(`${r.device.type || ''} ${r.device.brand || ''} ${r.device.os || ''}`.trim());
+                      if (r.device.browser) devInfoParts.push(`浏览器: ${r.device.browser}`);
+                      if (r.device.screenResolution) devInfoParts.push(`屏幕: ${r.device.screenResolution}`);
+                      if (r.device.isTouch) devInfoParts.push('触屏');
+                      if (r.device.timezone) devInfoParts.push(`时区: ${r.device.timezone}`);
+                      if (r.device.languages) devInfoParts.push(`语言: ${r.device.languages}`);
+                    }
+                    if (r.ip) {
+                      const ipAddr = r.ip.split(',')[0].trim();
+                      devInfoParts.push(`IP: ${ipAddr}`);
+                    }
+                    if (r.location) {
+                      const locStr = [r.location.country, r.location.region, r.location.city].filter(Boolean).join(' ');
+                      if (locStr) devInfoParts.push(`📍 ${locStr}`);
+                      if (r.location.isp) devInfoParts.push(`ISP: ${r.location.isp}`);
+                    }
+                    const devTooltip = devInfoParts.join(' | ') || '未知';
+
+                    // 行内简短显示
+                    const shortIp = r.ip ? r.ip.split(',')[0].trim().slice(0, 15) : '';
+                    const shortLocation = r.location
+                      ? [r.location.country, r.location.city].filter(Boolean).join(' ')
+                      : '';
+
                     return (
                       <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                         <td className="px-3 py-2.5 text-gray-500 text-xs font-mono whitespace-nowrap">
@@ -256,8 +304,10 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
                         <td className="px-3 py-2.5">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${TYPE_BADGE[r.finalType.name] || 'bg-gray-100'}`}>{r.finalType.name}</span>
                         </td>
-                        <td className="px-3 py-2.5 text-xs text-gray-500 max-w-[140px] truncate" title={devInfo}>
-                          {uid} <span className="text-gray-300">|</span> <span className="text-gray-400">{devInfo.slice(0, 20)}</span>
+                        <td className="px-3 py-2.5 text-xs text-gray-500 max-w-[200px] truncate" title={devTooltip}>
+                          {uid}
+                          {shortIp ? <><span className="text-gray-300"> | </span><span className="text-gray-400">{shortIp}</span></> : null}
+                          {shortLocation ? <><span className="text-gray-300"> · </span><span className="text-gray-400">{shortLocation.slice(0, 16)}</span></> : null}
                         </td>
                         <td className="px-3 py-2.5 text-center font-mono text-xs text-gray-700">{r.avgA.toFixed(2)}</td>
                         <td className="px-3 py-2.5 text-center font-mono text-xs text-gray-700">{r.avgB.toFixed(2)}</td>
