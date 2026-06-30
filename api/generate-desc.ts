@@ -29,28 +29,22 @@ export async function POST(request: Request): Promise<Response> {
     // 构建 prompt
     const scoreLines = typeScores.map((t: { name: string; score: number }) => `${t.name}（模型得分: ${t.score.toFixed(2)}）`).join("\n");
 
-    const prompt = `你是依恋理论（Attachment Theory）领域的中文心理学作家。请根据以下四种依恋风格及其模型得分，为每种风格分别撰写一段有洞察力的、人性化的描述。
+    const prompt = `基于亲密关系经历量表 (ECR)，请根据以下四种依恋风格及其模型得分，为每种风格分别撰写一段性格相关的描述。
 
 当前得分：
 ${scoreLines}
 
 要求：
-1. 为每种风格写一段描述（40-80字），语气温暖但不失专业，让读者感到被理解而非被评判。
+1. 为每种风格写一段描述（40-80字），真实反应性格特点，让读者感到专业被理解而非被评判。
 2. 描述应贴合该风格的得分水平——高分时突出该倾向的鲜明表现，低分时强调其柔和/反向的一面。
 3. 四种描述的文风和切入点要有明显差异，避免雷同句式。
 4. 输出格式：严格按以下顺序，每行一段，不要编号、不要前缀、不要空行：
-安全型的描述
-恐惧型的描述
-痴迷型的描述
-疏离型的描述
 
 只输出四行纯文本描述，不要任何额外文字。`;
 
     const completion = await openai.chat.completions.create({
       model: "deepseek-v4-pro",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.95,
-      max_tokens: 800,
     });
 
     const content = completion.choices[0]?.message?.content || "";
