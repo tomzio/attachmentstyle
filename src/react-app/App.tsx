@@ -186,6 +186,25 @@ const HistoryPanel = ({
   );
 };
 
+// ===================== AI 描述生成（通过服务端 API 调用 DeepSeek） =====================
+const generateAIDescriptions = async (
+  typeScores: { name: string; score: number }[]
+): Promise<string[]> => {
+  const res = await fetch('/api/generate-desc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ typeScores }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as any).error || `请求失败 ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.descriptions;
+};
+
 // ===================== 主组件 =====================
 const parseAnswersFromUrl = (): (number | null)[] | null => {
   const params = new URLSearchParams(window.location.search);
@@ -380,23 +399,14 @@ export default function App() {
 
     setDescLoading(true);
     try {
-      const res = await fetch('/api/generate-desc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          typeScores: resultData.types.map(t => ({ name: t.name, score: t.score })),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setDescError(data.error || 'AI 功能正在维护中，请稍后重试');
-        return;
-      }
+      const descriptions = await generateAIDescriptions(
+        resultData.types.map(t => ({ name: t.name, score: t.score }))
+      );
 
       // 将描述数组转换为 name → desc 映射
       const newSet: Record<string, string> = {};
       resultData.types.forEach((t, i) => {
-        newSet[t.name] = data.descriptions[i];
+        newSet[t.name] = descriptions[i];
       });
 
       setGeneratedDescSets(prev => [...prev, newSet]);

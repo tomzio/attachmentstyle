@@ -4,9 +4,11 @@
  * 请求体：{ typeScores: { name: string; score: number }[] }
  * 响应：  { descriptions: string[] }  (与 typeScores 顺序一致)
  */
+import OpenAI from "openai";
+
 export async function POST(request: Request): Promise<Response> {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as { typeScores?: { name: string; score: number }[] };
     const { typeScores } = body;
 
     if (!typeScores || !Array.isArray(typeScores) || typeScores.length !== 4) {
@@ -17,6 +19,12 @@ export async function POST(request: Request): Promise<Response> {
     if (!apiKey) {
       return Response.json({ error: "DeepSeek API Key 未配置" }, { status: 500 });
     }
+
+    const openai = new OpenAI({
+      baseURL: "https://api.deepseek.com",
+      apiKey,
+      timeout: 15000,
+    });
 
     // 构建 prompt
     const scoreLines = typeScores.map((t: { name: string; score: number }) => `${t.name}（模型得分: ${t.score.toFixed(2)}）`).join("\n");
@@ -38,38 +46,14 @@ ${scoreLines}
 
 只输出四行纯文本描述，不要任何额外文字。`;
 
-    // 调用 DeepSeek API
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const completion = await openai.chat.completions.create({
+      model: "deepseek-v4-pro",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.95,
+      max_tokens: 800,
+    });
 
-    let aiRes: Response;
-    try {
-      aiRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-v4-flash",
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.95,
-          max_tokens: 800,
-        }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    if (!aiRes.ok) {
-      const errText = await aiRes.text().catch(() => "");
-      console.error("DeepSeek API 错误:", aiRes.status, errText);
-      return Response.json({ error: `DeepSeek API 返回错误 ${aiRes.status}` }, { status: 502 });
-    }
-
-    const aiData: any = await aiRes.json();
-    const content: string = aiData?.choices?.[0]?.message?.content || "";
+    const content = completion.choices[0]?.message?.content || "";
 
     // 解析四行描述
     const lines = content
@@ -83,11 +67,8 @@ ${scoreLines}
     }
 
     return Response.json({ descriptions: lines });
-  } catch (error: any) {
-    if (error?.name === "AbortError") {
-      return Response.json({ error: "请求超时，请重试" }, { status: 504 });
-    }
-    console.error("生成描述失败:", error?.message);
-    return Response.json({ error: "服务器内部错误" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("生成描述失败:", error instanceof Error ? error.message : String(error));
+    return Response.json({ error: "AI 生成失败，请重试" }, { status: 500 });
   }
 }
