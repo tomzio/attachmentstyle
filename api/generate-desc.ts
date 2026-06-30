@@ -43,7 +43,7 @@ ${scoreLines}
 只输出四行纯文本描述，不要任何额外文字。`;
 
     const completion = await openai.chat.completions.create({
-      model: "deepseek-v4-pro",
+      model: "deepseek-v4-flash",
       messages: [{ role: "user", content: prompt }],
     });
 

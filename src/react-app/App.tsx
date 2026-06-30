@@ -107,7 +107,7 @@ const RatingScale = ({ value, onChange }: { value: number | null; onChange: (val
         <button
           key={opt.val}
           onClick={() => onChange(opt.val)}
-          className={`flex-1 min-w-[13%] py-2 sm:py-3 px-1 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center select-none
+          className={`flex-1 min-w-[15%] py-2 sm:py-3 px-1 rounded-lg border transition-all duration-200 flex flex-col items-center justify-start select-none
             ${value === opt.val
               ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-[1.02]'
               : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
@@ -146,7 +146,7 @@ const HistoryPanel = ({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="px-2 flex items-center justify-between mb-4">
         <span className="text-xs text-gray-400">共 {history.length} 条记录</span>
         <button
           onClick={onClear}
@@ -161,9 +161,9 @@ const HistoryPanel = ({
             key={entry.id}
             className="bg-white rounded-lg border border-gray-100 p-2 flex items-center justify-between hover:shadow-sm transition-shadow"
           >
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
               <span
-                className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${
                   TYPE_COLOR_MAP[entry.finalType.name] || 'bg-gray-100 text-gray-600'
                 }`}
               >
@@ -434,14 +434,14 @@ export default function App() {
   // ===================== 结果页 =====================
   if (showResult && resultData) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-4 lg:px-8 font-sans">
         <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div className="bg-blue-600 px-6 py-8 text-center text-white">
+          <div className="bg-blue-600 px-4 py-8 text-center text-white">
             <h1 className="text-3xl font-bold mb-2">您的依恋风格测试结果</h1>
             <p className="opacity-90">基于亲密关系经历量表 (ECR)</p>
           </div>
 
-          <div className="p-6 sm:p-10 space-y-8">
+          <div className="p-6 sm:p-6 space-y-8">
             {/* 核心结论区 */}
             <div className={`p-6 rounded-xl border-2 ${resultData.finalType.color} text-center`}>
               <h2 className="text-xl mb-2 font-medium opacity-80">您的主要依恋倾向是</h2>
@@ -496,7 +496,7 @@ export default function App() {
             </div>
 
             {/* 维度得分 */}
-            <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+            <div className="bg-gray-50 rounded-xl p-2 border border-gray-200">
               <h3 className="text-lg font-bold mb-4 text-gray-800">基础维度平均分</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
@@ -623,12 +623,12 @@ export default function App() {
                     <h3 className="text-lg text-gray-800 font-medium leading-relaxed">
                       {question.replace(/\s*\(R\)\s*$/, '')}
                     </h3>
-                    <RatingScale
-                      value={answers[index]}
-                      onChange={(val: number) => handleAnswerChange(index, val)}
-                    />
                   </div>
                 </div>
+                <RatingScale
+                  value={answers[index]}
+                  onChange={(val: number) => handleAnswerChange(index, val)}
+                />
               </div>
             );
           })}
@@ -669,7 +669,7 @@ export default function App() {
               </span>
             </button>
             {showHistory && (
-              <div className="px-4 sm:px-4 pb-6">
+              <div className="px-2 py-4 sm:px-2 pb-6">
                 <HistoryPanel history={history} onClear={handleClearHistory} />
               </div>
             )}
