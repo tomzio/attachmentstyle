@@ -187,8 +187,22 @@ const HistoryPanel = ({
 };
 
 // ===================== 主组件 =====================
+const parseAnswersFromUrl = (): (number | null)[] | null => {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('answers');
+  if (!raw) return null;
+  const vals = raw.split(',').map(s => {
+    const n = parseInt(s.trim(), 10);
+    return (n >= 1 && n <= 7) ? n : null;
+  });
+  if (vals.length !== 36) return null;
+  return vals;
+};
+
 export default function App() {
-  const [answers, setAnswers] = useState<(number | null)[]>(Array(36).fill(null));
+  const [answers, setAnswers] = useState<(number | null)[]>(
+    () => parseAnswersFromUrl() || Array(36).fill(null)
+  );
   const [showResult, setShowResult] = useState(false);
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -197,6 +211,12 @@ export default function App() {
   const [adminMode, setAdminMode] = useState(
     () => window.location.pathname === '/admin'
   );
+
+  // 描述 AI 生成相关状态
+  const [generatedDescSets, setGeneratedDescSets] = useState<Record<string, string>[]>([]);
+  const [descGenCount, setDescGenCount] = useState(0);
+  const [descLoading, setDescLoading] = useState(false);
+  const [descError, setDescError] = useState('');
 
   // 监听浏览器前进/后退
   const updateAdminFromPath = useCallback(() => {
@@ -335,6 +355,67 @@ export default function App() {
   const answeredCount = answers.filter(a => a !== null).length;
   const progressPercentage = (answeredCount / 36) * 100;
 
+  // 判断四种类型分数是否完全相同（用于控制刷新按钮显隐）
+  const scoresAllIdentical = resultData
+    ? new Set(resultData.types.map(t => t.score.toFixed(6))).size === 1
+    : true;
+
+  // 当前显示的描述集索引（-1 表示使用原始硬编码描述）
+  const descDisplayIndex = descGenCount === 0
+    ? -1
+    : ((descGenCount - 1) % Math.min(generatedDescSets.length, 10));
+  const currentDescs = descDisplayIndex >= 0 ? generatedDescSets[descDisplayIndex] : null;
+  const descShowNumber = descDisplayIndex + 1; // 1-10
+
+  // 刷新描述处理
+  const handleRefreshDescs = async () => {
+    if (descLoading || !resultData) return;
+    setDescError('');
+
+    // 已生成满 10 个，只循环不生成
+    if (generatedDescSets.length >= 10) {
+      setDescGenCount(prev => prev + 1);
+      return;
+    }
+
+    setDescLoading(true);
+    try {
+      const res = await fetch('/api/generate-desc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          typeScores: resultData.types.map(t => ({ name: t.name, score: t.score })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDescError(data.error || 'AI 功能正在维护中，请稍后重试');
+        return;
+      }
+
+      // 将描述数组转换为 name → desc 映射
+      const newSet: Record<string, string> = {};
+      resultData.types.forEach((t, i) => {
+        newSet[t.name] = data.descriptions[i];
+      });
+
+      setGeneratedDescSets(prev => [...prev, newSet]);
+      setDescGenCount(prev => prev + 1);
+    } catch {
+      setDescError('AI 功能正在维护中，请稍后重试');
+    } finally {
+      setDescLoading(false);
+    }
+  };
+
+  // 重置时清除描述缓存
+  const resetTestWithDesc = () => {
+    resetTest();
+    setGeneratedDescSets([]);
+    setDescGenCount(0);
+    setDescError('');
+  };
+
   // ===================== 管理员模式 =====================
   if (adminMode) {
     return <AdminPanel onClose={exitAdmin} />;
@@ -355,7 +436,53 @@ export default function App() {
             <div className={`p-6 rounded-xl border-2 ${resultData.finalType.color} text-center`}>
               <h2 className="text-xl mb-2 font-medium opacity-80">您的主要依恋倾向是</h2>
               <div className="text-4xl font-extrabold mb-4">{resultData.finalType.name}</div>
-              <p className="text-lg leading-relaxed">{resultData.finalType.desc}</p>
+              <p className="text-lg leading-relaxed">
+                {currentDescs ? currentDescs[resultData.finalType.name] : resultData.finalType.desc}
+              </p>
+              {/* AI 刷新按钮：仅在四种类型分数不完全相同时显示 */}
+              {!scoresAllIdentical && (
+                <div className="mt-5 pt-1">
+                  {descError && (
+                    <div className="flex items-center justify-center gap-2 mb-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
+                      <span className="text-base">⚠️</span>
+                      <span>{descError}</span>
+                    </div>
+                  )}
+                  <div>
+                    <button
+                      onClick={handleRefreshDescs}
+                      disabled={descLoading}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium
+                        rounded-full transition-all duration-300
+                        bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900
+                        border border-white/60 hover:border-white
+                        shadow-md hover:shadow-lg hover:-translate-y-0.5
+                        active:scale-95
+                        disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                      title={
+                        generatedDescSets.length >= 10
+                          ? `已生成${generatedDescSets.length}个版本，点击循环切换(当前${descShowNumber}/10)`
+                          : generatedDescSets.length > 0
+                            ? `已生成${generatedDescSets.length}个版本，点击再生成`
+                            : '通过 DeepSeek AI 重新生成全新描述'
+                      }
+                    >
+                      {descLoading ? (
+                        <>
+                          <span className="inline-block w-4 h-4 border-2 border-gray-400 border-t-gray-600 rounded-full animate-spin" />
+                          AI 生成中...
+                        </>
+                      ) : generatedDescSets.length >= 10 ? (
+                        `🔄 切换描述 (${descShowNumber}/10)`
+                      ) : generatedDescSets.length > 0 ? (
+                        `🔄 再生成 (${generatedDescSets.length}/10)`
+                      ) : (
+                        '✨ AI 重新生成描述'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 维度得分 */}
@@ -406,7 +533,7 @@ export default function App() {
 
             <div className="pt-6 text-center flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={resetTest}
+                onClick={resetTestWithDesc}
                 className="px-8 py-3 bg-gray-800 text-white font-medium rounded-full hover:bg-gray-700 transition-colors shadow-lg hover:shadow-xl"
               >
                 重新测试
