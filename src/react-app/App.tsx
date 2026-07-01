@@ -102,7 +102,7 @@ const SCALE_OPTIONS = [
 // ===================== 计分组件 =====================
 const RatingScale = ({ value, onChange }: { value: number | null; onChange: (val: number) => void }) => {
   return (
-    <div className="flex flex-wrap lg:flex-nowrap gap-1.5 sm:gap-2 mt-4">
+    <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-4">
       {SCALE_OPTIONS.map((opt) => (
         <button
           key={opt.val}
